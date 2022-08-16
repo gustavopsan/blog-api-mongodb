@@ -1,10 +1,20 @@
-const express = require('express');
-const app = express();
 const JWT = require('jsonwebtoken');
 const CORS = require('cors');
-const mongoConnection = require('./database/connection');
-const userModel = require('./models/user');
+const express = require('express');
+const app = express();
 const PORT = process.env.PORT || 3000;
+
+require('./controllers/database/connection');
+
+const userModel = require('./models/user');
+
+const createUser = require('./controllers/user/createUser');
+const authenticateUser = require('./controllers/user/authenticateUser');
+const checkSession = require('./controllers/user/checkSession');
+const updateUser = require('./controllers/user/updateUser');
+
+const validateEmail = require('./middlewares/validateEmail');
+const validatePassword = require('./middlewares/validatePassword');
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
@@ -24,80 +34,88 @@ app.get('/', (req, res) => {
 })
 
 app.post('/createUser', async (req, res) => {
-    const { name, email, password, avatar, active } = req.body;
+    const { name, email, password, passwordConfirm, avatar, active } = req.body;
 
-    try {
-        const newUser = await userModel.create({
-            name,
-            email,
-            password,
-            avatar,
-            active
+    if (password !== passwordConfirm) {
+        res.json({
+            errorId: 'register_01',
+            message: 'Password does not match'
         });
-
-        res.json(newUser);
-    } catch (error) {
-        res.status(500).json(error);
+    } else if (!validateEmail(email)) {
+        res.json({
+            errorId: 'register_02',
+            message: 'Invalid email format'
+        });
+    } else if (!validatePassword(password)) {
+        res.json({
+            errorId: 'register_03',
+            message: 'Invalid password format'
+        });
+    } else {
+        createUser(name, email, password, avatar, active)
+            .then(response => {
+                if (response.hasOwnProperty('keyValue')) {
+                    return res.json({
+                        errorId: 'register_04',
+                        message: 'Email already exists'
+                    });
+                } else {
+                    return res.json({
+                        message: 'User created successfully'
+                    });
+                }
+            });
     }
+    
 })
 
 app.post('/authenticate', async (req, res) => {
     const { email, password } = req.body;
 
-    try {
-        const user = await userModel.findOne({ email });
-
-        if (!user) {
-            return res.status(401).json({
+    authenticateUser(email, password).then(response => {
+        if(response.errorId == 'auth_01'){
+            res.json({
                 errorId: 'auth_01',
-                error: 'User not found' 
+                message: 'User not found'
             });
-        }
-
-        if (user.password !== password) {
-            return res.status(401).json({
+        } else if(response.errorId == 'auth_02'){
+            res.json({
                 errorId: 'auth_02',
-                error: 'Password does not match'
+                message: 'Password does not match'
+            });
+        } else if(response.errorId == 'auth_03'){
+            res.json({
+                errorId: 'auth_03',
+                message: 'User is not active'
+            });
+        } else {
+            const token = JWT.sign({ id: response._id }, process.env.SECRET, { expiresIn: '1m' });
+
+            res.json({
+                userId: response._id,
+                token
             });
         }
-
-        const token = JWT.sign({ id: user._id }, process.env.SECRET, { expiresIn: '1m' });
-
-        res.json({
-            userId: user._id,
-            token
-        });
-    } catch (error) {
-        res.status(500).json(error);
-    }
+    }).catch(error => {
+        res.json(error);
+    })
 })
 
 app.post('/checkSession', async (req, res) => {
     const { token } = req.body;
 
-    try {
-        const decoded = JWT.verify(token, process.env.SECRET);
-
-        const user = await userModel.findById(decoded.id);
-
-        if (!user) {
-            return res.status(401).json({
-                errorId: 'auth_03',
-                error: 'User not found'
+    checkSession(token).then(response => {
+        if(response.errorId == 'auth_01'){
+            res.json({
+                errorId: 'auth_01',
+                message: 'User not found'
             });
+        } else {
+            res.json(response);
         }
-
-        res.json({
-            userId: user._id,
-            Name: user.name,
-            Email: user.email,
-            Avatar: user.avatar,
-            Biography: user.biography,
-            Active: user.active
-        });
-    } catch (error) {
-        res.status(500).json(error);
-    }
+    }).catch(error => {
+        res.json(error);
+    })
 })
 
 app.get('/getUsers', async (req, res) => {
@@ -105,71 +123,19 @@ app.get('/getUsers', async (req, res) => {
         const users = await userModel.find();
         res.json(users);
     } catch (error) {
-        res.status(500).json(error);
+        res.json(error);
     }
 })
 
-app.post('/updateUserName', async (req, res) => {
-    const { id, name } = req.body;
+app.post('/updateUser', async (req, res) => {
+    const { id, key, value } = req.body;
 
-    try {
-        const user = await userModel.findByIdAndUpdate({ _id: `${id}` }, { name }, { new: false });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json(error);
-    }
+    updateUser(id, key, value).then(response => {
+        res.json(response);
+    }).catch(error => {
+        res.json(error);
+    })
 })
-
-app.post('/updateUserPassword', async (req, res) => {
-    const { id, password } = req.body;
-
-    try {
-        const user = await userModel.findByIdAndUpdate({ _id: `${id}` }, { password }, { new: false });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json(error);
-    }
-})
-
-app.post('/updateUserBio', async (req, res) => {
-    const { id, biography } = req.body;
-
-    try {
-        const user = await userModel.findByIdAndUpdate({ _id: `${id}` }, { biography }, { new: false });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json(error);
-    }
-})
-
-app.post('/updateUserAvatar', async (req, res) => {
-    const { id, avatar } = req.body;
-
-    try {
-        const user = await userModel.findByIdAndUpdate({ _id: `${id}` }, { avatar }, { new: false });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json(error);
-    }
-})
-
-app.post('/updateUserActive', async (req, res) => {
-    const { id, active } = req.body;
-
-    try {
-        const user = await userModel.findByIdAndUpdate({ _id: `${id}` }, { active }, { new: false });
-
-        res.json(user);
-    } catch (error) {
-        res.status(500).json(error);
-    }
-})
-
-
 
 app.listen(PORT, () => {
     console.log('Server started on port ' + PORT);
