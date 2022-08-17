@@ -109,7 +109,7 @@ app.post('/authenticate', async (req, res) => {
                 message: 'User is not active'
             });
         } else {
-            const token = JWT.sign({ id: response._id }, process.env.SECRET, { expiresIn: '1m' });
+            const token = JWT.sign({ id: response._id }, process.env.SECRET, { expiresIn: '1d' });
 
             console.log("Blog API MongoDB - authenticate - Usuário " + response._id + " autenticado com sucesso");
 
