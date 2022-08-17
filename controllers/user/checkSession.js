@@ -15,11 +15,11 @@ async function checkSession(token) {
 
         return {
             userId: user._id,
-            Name: user.name,
-            Email: user.email,
-            Avatar: user.avatar,
-            Biography: user.biography,
-            Active: user.active
+            name: user.name,
+            email: user.email,
+            avatar: user.avatar,
+            biography: user.biography,
+            active: user.active
         };
     } catch (error) {
         return error;

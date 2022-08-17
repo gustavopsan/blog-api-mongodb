@@ -6,7 +6,7 @@ const connectionParams = {
     useUnifiedTopology: true
 }
 
-const uri = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@cluster0.cizdhpm.mongodb.net/?retryWrites=true&w=majority`;
+const uri = `mongodb+srv://${process.env.MONGODB_USERNAME}:${process.env.MONGODB_PASSWORD}@cluster0.cizdhpm.mongodb.net/blog-api?retryWrites=true&w=majority`;
 
 const connection = mongoose
     .connect(uri, connectionParams)

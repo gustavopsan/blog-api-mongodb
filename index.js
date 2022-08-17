@@ -70,7 +70,7 @@ app.post('/createUser', async (req, res) => {
                         message: 'Email already exists'
                     });
                 } else {
-                    console.log("Blog API MongoDB - createUser - Usuário criado com sucesso");
+                    console.log("Blog API MongoDB - createUser - Usuário " + response._id + " criado com sucesso");
 
                     return res.json({
                         message: 'User created successfully'
@@ -111,7 +111,7 @@ app.post('/authenticate', async (req, res) => {
         } else {
             const token = JWT.sign({ id: response._id }, process.env.SECRET, { expiresIn: '1m' });
 
-            console.log("Blog API MongoDB - authenticate - Usuário autenticado com sucesso");
+            console.log("Blog API MongoDB - authenticate - Usuário " + response._id + " autenticado com sucesso");
 
             res.json({
                 userId: response._id,
@@ -133,6 +133,11 @@ app.post('/checkSession', async (req, res) => {
             res.json({
                 errorId: 'auth_01',
                 message: 'User not found'
+            });
+        } else if (response.message == 'jwt expired') {
+            res.json({
+                errorId: 'auth_02',
+                message: 'Session expired'
             });
         } else {
             res.json(response);
