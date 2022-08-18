@@ -13,7 +13,11 @@ async function updatePost(postId, creatorId, title, description, tag, body, visi
                     body,
                     visible
                 }, { new: false });
-                return postUpdated;
+                
+                if(postUpdated){
+                    const post = await postModel.findById(postId);
+                    return post;
+                }
             } catch (error) {
                 return error;
             }
