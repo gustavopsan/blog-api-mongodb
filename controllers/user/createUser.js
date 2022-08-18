@@ -7,7 +7,7 @@ async function createUser(name, email, password, avatar, active) {
             email, 
             password, 
             avatar, 
-            active 
+            active: active || true
         });
         return userCreated;
     } catch (error) {
